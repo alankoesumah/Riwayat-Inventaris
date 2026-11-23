@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inventaris Sarpras - Preview Interaktif</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f3f4f6;
+    }
+    .tab-active {
+      border-bottom: 3px solid #2563eb;
+      color: #2563eb;
+      font-weight: 600;
+    }
+    .tab-danger-active {
+      border-bottom: 3px solid #dc2626;
+      color: #dc2626;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body class="text-gray-800 min-h-screen flex flex-col">
+
+  <!-- Header Aplikasi -->
+  <header class="bg-white shadow-sm sticky top-0 z-20">
+    <div class="max-w-4xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="bg-blue-600 text-white p-2.5 rounded-xl shadow-sm">
+          <i class="fa-solid fa-boxes-stacked text-xl"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg font-bold text-gray-900 leading-tight">Inventaris Sarpras</h1>
+            <span class="text-[11px] font-semibold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">Mode Preview</span>
+          </div>
+          <p class="text-xs text-gray-500">Pencatatan Barang Masuk &amp; Pemusnahan</p>
+        </div>
+      </div>
+
+      <a href="https://docs.google.com/spreadsheets/d/1y1NXGVhJYPOAB2AuED1LP2SqOu3vS6AuZUoT3HexJvQ/edit?usp=sharing"
+         target="_blank"
+         rel="noopener noreferrer"
+         class="text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 px-3.5 py-2 rounded-lg font-medium flex items-center gap-1.5 transition">
+        <i class="fa-solid fa-table"></i> Buka Sheet
+      </a>
+    </div>
+  </header>
+
+  <!-- Konten Utama -->
+  <main class="max-w-4xl w-full mx-auto px-4 py-6 flex-1">
+
+    <!-- Navigasi 3 Tab -->
+    <nav aria-label="Navigasi Utama" class="bg-white rounded-xl shadow-sm mb-6 flex border-b border-gray-100 overflow-hidden">
+      <button type="button" id="btnTabMasuk" onclick="switchTab('masuk')"
+              class="flex-1 py-3.5 px-2 text-xs sm:text-sm text-center transition tab-active flex items-center justify-center gap-2">
+        <i class="fa-solid fa-circle-plus text-blue-600"></i>
+        <span>Barang Masuk</span>
+      </button>
+      <button type="button" id="btnTabMusnah" onclick="switchTab('musnah')"
+              class="flex-1 py-3.5 px-2 text-xs sm:text-sm text-center text-gray-500 hover:text-gray-700 transition flex items-center justify-center gap-2">
+        <i class="fa-solid fa-trash-can text-red-500"></i>
+        <span>Pemusnahan Barang</span>
+      </button>
+      <button type="button" id="btnTabRiwayat" onclick="switchTab('riwayat')"
+              class="flex-1 py-3.5 px-2 text-xs sm:text-sm text-center text-gray-500 hover:text-gray-700 transition flex items-center justify-center gap-2">
+        <i class="fa-solid fa-clock-rotate-left text-gray-500"></i>
+        <span>Riwayat Terbaru</span>
+      </button>
+    </nav>
+
+    <!-- Kotak Notifikasi / Pesan Status -->
+    <div id="alertBox" class="hidden mb-5 p-4 rounded-xl text-sm font-medium flex items-center justify-between gap-3 shadow-sm">
+      <div class="flex items-center gap-2.5">
+        <i id="alertIcon" class="fa-solid fa-circle-check text-lg"></i>
+        <span id="alertMessage"></span>
+      </div>
+      <button type="button" onclick="hideAlert()" aria-label="Tutup notifikasi"
+              class="text-current opacity-70 hover:opacity-100 font-bold text-lg leading-none px-1">&times;</button>
+    </div>
+
+    <!-- TAB 1: FORM BARANG MASUK -->
+    <section id="panelMasuk" class="bg-white rounded-xl shadow-sm p-5 sm:p-6 border border-gray-100">
+      <h2 class="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <span class="w-2 h-6 bg-blue-600 rounded-full"></span>
+        Input Barang Baru Masuk
+      </h2>
+
+      <form id="formMasuk" onsubmit="submitBarangMasuk(event)" class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="masukTanggal" class="block text-xs font-semibold text-gray-600 uppercase mb-1.5">
+              Tanggal Masuk <span class="text-red-500">*</span>
+            </label>
+            <input type="date" id="masukTanggal" required
+                   class="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none">
+          </div>
+          <div>
+            <label for="masukJumlah" class="block text-xs font-semibold text-gray-600 uppercase mb-1.5">
+              Jumlah Barang <span class="text-red-500">*</span>
+            </label>
+            <input type="number" id="masukJumlah" min="1" placeholder="Contoh: 5" required
+                   class="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none">
+          </div>
+        </div>
+
+        <div>
+          <label for="masukNama" class="block text-xs font-semibold text-gray-600 uppercase mb-1.5">
+            Nama Barang <span class="text-red-500">*</span>
+          </label>
+          <input type="text" id="masukNama" placeholder="Contoh: Proyektor Epson EB-X500" required
+                 class="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none">
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="masukSumber" class="block text-xs font-semibold text-gray-600 uppercase mb-1.5">
+              Sumber Dana <span class="text-red-500">*</span>
+            </label>
+            <select id="masukSumber" required
+                    class="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none">
+              <option value="" disabled selected>Pilih sumber dana</option>
+              <option value="Dana BOS">Dana BOS</option>
+              <option value="Yayasan">Yayasan</option>
+            </select>
+          </div>
+          <div>
+            <label for="masukLokasi" class="block text-xs font-semibold text-gray-600 uppercase mb-1.5">
+              Lokasi Penyimpanan <span class="text-red-500">*</span>
+            </label>
+            <input type="text" id="masukLokasi" placeholder="Contoh: Ruang Guru / Gudang Lt. 2" required
+                   class="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none">
+          </div>
+        </div>
+
+        <div>
+          <label for="masukFoto" class="block text-xs font-semibold text-gray-600 uppercase mb-1.5">
+            Foto Dokumentasi (Opsional)
+          </label>
+          <input type="file" id="masukFoto" accept="image/*" capture="environment"
+                 onchange="previewImage(this, 'previewMasuk', 'masuk')"
+                 class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
+          <div id="previewMasukWrapper" class="hidden mt-3">
+            <img id="previewMasuk" alt="Pratinjau foto barang masuk"
+                 class="max-h-44 rounded-lg border border-gray-200 object-cover">
+            <p id="namaFileMasuk" class="text-xs text-gray-500 mt-1"></p>
+          </div>
+        </div>
+
+        <button type="submit" id="btnSubmitMasuk"
+                class="w-full bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-semibold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-sm">
+          <i class="fa-solid fa-floppy-disk"></i>
+          <span>Simpan Data Barang Masuk</span>
+        </button>
+      </form>
+    </section>
+
+    <!-- TAB 2: FORM PEMUSNAHAN BARANG -->
+    <section id="panelMusnah" class="hidden bg-white rounded-xl shadow-sm p-5 sm:p-6 border border-gray-100">
+      <h2 class="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <span class="w-2 h-6 bg-red-600 rounded-full"></span>
+        Input Pemusnahan / Penghapusan Barang
+      </h2>
+
+      <form id="formMusnah" onsubmit="submitPemusnahan(event)" class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="musnahTanggal" class="block text-xs font-semibold text-gray-600 uppercase mb-1.5">
+              Tanggal Pemusnahan <span class="text-red-500">*</span>
+            </label>
+            <input type="date" id="musnahTanggal" required
+                   class="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:outline-none">
+          </div>
+          <div>
+            <label for="musnahJumlah" class="block text-xs font-semibold text-gray-600 uppercase mb-1.5">
+              Jumlah Dibuang <span class="text-red-500">*</span>
+            </label>
+            <input type="number" id="musnahJumlah" min="1" placeholder="Contoh: 2" required
+                   class="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:outline-none">
+          </div>
+        </div>
+
+        <div>
+          <label for="musnahNama" class="block text-xs font-semibold text-gray-600 uppercase mb-1.5">
+            Item / Nama Barang <span class="text-red-500">*</span>
+          </label>
+          <input type="text" id="musnahNama" placeholder="Contoh: Kursi Siswa Kayu Rusak Berat" required
+                 class="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 focus:outline-none">
+        </div>
+
+        <div>
+          <label for="musnahFoto" class="block text-xs font-semibold text-gray-600 uppercase mb-1.5">
+            Foto Bukti Kondisi Barang (Opsional)
+          </label>
+          <input type="file" id="musnahFoto" accept="image/*" capture="environment"
+                 onchange="previewImage(this, 'previewMusnah', 'musnah')"
+                 class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100 cursor-pointer">
+          <div id="previewMusnahWrapper" class="hidden mt-3">
+            <img id="previewMusnah" alt="Pratinjau foto bukti pemusnahan"
+                 class="max-h-44 rounded-lg border border-gray-200 object-cover">
+            <p id="namaFileMusnah" class="text-xs text-gray-500 mt-1"></p>
+          </div>
+        </div>
+
+        <button type="submit" id="btnSubmitMusnah"
+                class="w-full bg-red-600 hover:bg-red-700 active:scale-[0.99] text-white font-semibold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-sm">
+          <i class="fa-solid fa-trash-arrow-up"></i>
+          <span>Catat Pemusnahan Barang</span>
+        </button>
+      </form>
+    </section>
+
+    <!-- TAB 3: RIWAYAT TERBARU -->
+    <section id="panelRiwayat" class="hidden space-y-6">
+      <div class="flex flex-wrap items-center justify-between gap-2 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-xs text-blue-800">
+        <span><i class="fa-solid fa-circle-info mr-1"></i> Data pada preview ini bersifat simulasi lokal. Setiap input baru akan muncul di tabel di bawah.</span>
+        <button type="button" onclick="resetPreviewData()"
+                class="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 px-3 py-1.5 rounded-lg font-medium flex items-center gap-1.5 transition shadow-2xs">
+          <i class="fa-solid fa-rotate-right"></i> Segarkan / Reset Contoh
+        </button>
+      </div>
+
+      <!-- Tabel Barang Masuk -->
+      <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h3 class="font-bold text-sm text-blue-700 flex items-center gap-2">
+            <i class="fa-solid fa-arrow-down-to-line"></i> Riwayat Barang Masuk
+          </h3>
+          <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <div class="relative flex-1 sm:w-52">
+              <i class="fa-solid fa-magnifying-glass text-gray-400 text-xs absolute left-3 top-1/2 -translate-y-1/2"></i>
+              <input type="text" id="searchBarangMasuk" oninput="renderRiwayat()"
+                     placeholder="Cari item barang masuk..."
+                     class="w-full text-xs border border-gray-300 rounded-lg pl-8 pr-7 py-1.5 bg-white text-gray-700 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+              <button type="button" id="clearSearchMasuk" onclick="clearSearchInput('searchBarangMasuk')"
+                      aria-label="Hapus pencarian barang masuk"
+                      class="hidden text-gray-400 hover:text-gray-600 text-xs absolute right-2.5 top-1/2 -translate-y-1/2">&times;</button>
+            </div>
+            <select id="filterSumberDana" onchange="renderRiwayat()"
+                    class="text-xs border border-gray-300 rounded-lg px-2.5 py-1.5 bg-white text-gray-700 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+              <option value="ALL">Semua Sumber Dana</option>
+              <option value="Dana BOS">Dana BOS</option>
+              <option value="Yayasan">Yayasan</option>
+            </select>
+            <span id="countMasuk" class="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-semibold">0 item</span>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-gray-50 text-gray-600 border-b border-gray-200">
+                <th class="p-2.5 font-semibold">No</th>
+                <th class="p-2.5 font-semibold">Tanggal</th>
+                <th class="p-2.5 font-semibold">Nama Barang</th>
+                <th class="p-2.5 font-semibold">Jumlah</th>
+                <th class="p-2.5 font-semibold">Sumber Dana</th>
+                <th class="p-2.5 font-semibold">Lokasi</th>
+                <th class="p-2.5 font-semibold">Foto</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyMasuk" class="divide-y divide-gray-100"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tabel Pemusnahan Barang -->
+      <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h3 class="font-bold text-sm text-red-700 flex items-center gap-2">
+            <i class="fa-solid fa-fire-extinguisher"></i> Riwayat Pemusnahan Barang
+          </h3>
+          <div class="flex items-center gap-2 w-full sm:w-auto">
+            <div class="relative flex-1 sm:w-52">
+              <i class="fa-solid fa-magnifying-glass text-gray-400 text-xs absolute left-3 top-1/2 -translate-y-1/2"></i>
+              <input type="text" id="searchBarangMusnah" oninput="renderRiwayat()"
+                     placeholder="Cari item pemusnahan..."
+                     class="w-full text-xs border border-gray-300 rounded-lg pl-8 pr-7 py-1.5 bg-white text-gray-700 focus:ring-2 focus:ring-red-500 focus:outline-none">
+              <button type="button" id="clearSearchMusnah" onclick="clearSearchInput('searchBarangMusnah')"
+                      aria-label="Hapus pencarian pemusnahan"
+                      class="hidden text-gray-400 hover:text-gray-600 text-xs absolute right-2.5 top-1/2 -translate-y-1/2">&times;</button>
+            </div>
+            <span id="countMusnah" class="text-xs bg-red-50 text-red-700 px-2.5 py-1 rounded-full font-semibold">0 item</span>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-gray-50 text-gray-600 border-b border-gray-200">
+                <th class="p-2.5 font-semibold">No</th>
+                <th class="p-2.5 font-semibold">Tanggal</th>
+                <th class="p-2.5 font-semibold">Item/Barang</th>
+                <th class="p-2.5 font-semibold">Jumlah</th>
+                <th class="p-2.5 font-semibold">Foto</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyMusnah" class="divide-y divide-gray-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Modal Pratinjau Foto di Riwayat -->
+  <div id="photoModal" class="hidden fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onclick="closePhotoModal()">
+    <div class="bg-white rounded-2xl max-w-md w-full p-4 shadow-xl" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between mb-3">
+        <h4 id="photoModalTitle" class="text-sm font-bold text-gray-800">Dokumentasi Foto</h4>
+        <button type="button" onclick="closePhotoModal()" class="text-gray-400 hover:text-gray-700 text-xl leading-none">&times;</button>
+      </div>
+      <img id="photoModalImg" src="" alt="Foto inventaris" class="w-full max-h-80 object-contain rounded-lg bg-gray-100">
+    </div>
+  </div>
+
+  <script>
+    // Tanggal hari ini sebagai nilai awal input tanggal
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('masukTanggal').value = today;
+    document.getElementById('musnahTanggal').value = today;
+
+    // Data contoh awal yang realistis untuk mode preview
+    const INITIAL_MASUK = [
+      {
+        no: 3,
+        tanggal: '2026-11-20',
+        namaBarang: 'Laptop Lenovo ThinkPad E14',
+        jumlah: 4,
+        sumberDana: 'Dana BOS',
+        lokasi: 'Ruang Tata Usaha',
+        fotoLabel: 'Ada Foto',
+        fotoSrc: 'https://placehold.co/600x400/dbeafe/1e40af?text=Laptop+Inventaris'
+      },
+      {
+        no: 2,
+        tanggal: '2026-11-12',
+        namaBarang: 'Papan Tulis Whiteboard 120x240',
+        jumlah: 6,
+        sumberDana: 'Komite Sekolah',
+        lokasi: 'Gudang Sarpras Lt. 1',
+        fotoLabel: '-',
+        fotoSrc: ''
+      },
+      {
+        no: 1,
+        tanggal: '2026-11-03',
+        namaBarang: 'Dispenser Galon Bawah',
+        jumlah: 3,
+        sumberDana: 'Yayasan',
+        lokasi: 'Ruang Guru',
+        fotoLabel: 'Ada Foto',
+        fotoSrc: 'https://placehold.co/600x400/e0f2fe/0369a1?text=Dispenser+Ruang+Guru'
+      }
+    ];
+
+    const INITIAL_MUSNAH = [
+      {
+        no: 2,
+        tanggal: '2026-11-18',
+        namaBarang: 'Kursi Siswa Kayu Rusak Berat',
+        jumlah: 5,
+        fotoLabel: 'Ada Foto',
+        fotoSrc: 'https://placehold.co/600x400/fee2e2/991b1b?text=Kursi+Rusak+Berat'
+      },
+      {
+        no: 1,
+        tanggal: '2026-11-05',
+        namaBarang: 'Monitor Tabung CRT Lama',
+        jumlah: 2,
+        fotoLabel: '-',
+        fotoSrc: ''
+      }
+    ];
+
+    const STORAGE_KEY_MASUK = 'inventaris_sarpras_preview_masuk_v1';
+    const STORAGE_KEY_MUSNAH = 'inventaris_sarpras_preview_musnah_v1';
+
+    function loadStoredData(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return JSON.parse(JSON.stringify(fallback));
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : JSON.parse(JSON.stringify(fallback));
+      } catch (err) {
+        return JSON.parse(JSON.stringify(fallback));
+      }
+    }
+
+    function saveStoredData(key, value) {
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+      } catch (err) {
+        // Abaikan jika kuota localStorage penuh (misalnya gambar besar)
+      }
+    }
+
+    let dataMasuk = loadStoredData(STORAGE_KEY_MASUK, INITIAL_MASUK);
+    let dataMusnah = loadStoredData(STORAGE_KEY_MUSNAH, INITIAL_MUSNAH);
+
+    let tempFotoMasuk = { src: '', name: '' };
+    let tempFotoMusnah = { src: '', name: '' };
+
+    // Index baris Barang Masuk yang sedang diedit lokasinya (null = tidak ada)
+    let editingLokasiIdx = null;
+
+    // Berpindah antar tab
+    function switchTab(tab) {
+      editingLokasiIdx = null;
+
+      ['panelMasuk', 'panelMusnah', 'panelRiwayat'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+      });
+
+      const baseTabClass = "flex-1 py-3.5 px-2 text-xs sm:text-sm text-center text-gray-500 hover:text-gray-700 transition flex items-center justify-center gap-2";
+      document.getElementById('btnTabMasuk').className = baseTabClass;
+      document.getElementById('btnTabMusnah').className = baseTabClass;
+      document.getElementById('btnTabRiwayat').className = baseTabClass;
+
+      if (tab === 'masuk') {
+        document.getElementById('panelMasuk').classList.remove('hidden');
+        document.getElementById('btnTabMasuk').className = "flex-1 py-3.5 px-2 text-xs sm:text-sm text-center transition tab-active flex items-center justify-center gap-2";
+      } else if (tab === 'musnah') {
+        document.getElementById('panelMusnah').classList.remove('hidden');
+        document.getElementById('btnTabMusnah').className = "flex-1 py-3.5 px-2 text-xs sm:text-sm text-center transition tab-danger-active flex items-center justify-center gap-2";
+      } else {
+        document.getElementById('panelRiwayat').classList.remove('hidden');
+        document.getElementById('btnTabRiwayat').className = "flex-1 py-3.5 px-2 text-xs sm:text-sm text-center transition tab-active flex items-center justify-center gap-2";
+        renderRiwayat();
+      }
+    }
+
+    // Kompresi & pratinjau gambar yang dipilih pengguna
+    function previewImage(input, imgId, tipe) {
+      const file = input.files && input.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 800;
+          const scale = img.width > MAX_WIDTH ? MAX_WIDTH / img.width : 1;
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+          const imgEl = document.getElementById(imgId);
+          imgEl.src = dataUrl;
+
+          if (tipe === 'masuk') {
+            document.getElementById('previewMasukWrapper').classList.remove('hidden');
+            document.getElementById('namaFileMasuk').textContent = 'File: ' + file.name;
+            tempFotoMasuk = { src: dataUrl, name: file.name };
+          } else {
+            document.getElementById('previewMusnahWrapper').classList.remove('hidden');
+            document.getElementById('namaFileMusnah').textContent = 'File: ' + file.name;
+            tempFotoMusnah = { src: dataUrl, name: file.name };
+          }
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function showAlert(message, isSuccess) {
+      const box = document.getElementById('alertBox');
+      const icon = document.getElementById('alertIcon');
+      const msgEl = document.getElementById('alertMessage');
+
+      box.className = isSuccess
+        ? "mb-5 p-4 rounded-xl text-sm font-medium flex items-center justify-between gap-3 shadow-sm bg-emerald-50 text-emerald-800 border border-emerald-200"
+        : "mb-5 p-4 rounded-xl text-sm font-medium flex items-center justify-between gap-3 shadow-sm bg-red-50 text-red-800 border border-red-200";
+
+      icon.className = isSuccess
+        ? "fa-solid fa-circle-check text-lg text-emerald-600"
+        : "fa-solid fa-triangle-exclamation text-lg text-red-600";
+
+      msgEl.textContent = message;
+      box.classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function hideAlert() {
+      document.getElementById('alertBox').classList.add('hidden');
+    }
+
+    // Simpan data Barang Masuk ke state preview
+    function submitBarangMasuk(e) {
+      e.preventDefault();
+
+      const tanggal = document.getElementById('masukTanggal').value;
+      const jumlah = Number(document.getElementById('masukJumlah').value);
+      const namaBarang = document.getElementById('masukNama').value.trim();
+      const sumberDana = document.getElementById('masukSumber').value.trim();
+      const lokasi = document.getElementById('masukLokasi').value.trim();
+
+      if (!tanggal || !namaBarang || !jumlah || jumlah < 1 || !sumberDana || !lokasi) {
+        showAlert('Mohon lengkapi seluruh kolom wajib pada form Barang Masuk.', false);
+        return;
+      }
+
+      const nextNo = dataMasuk.length + 1;
+      dataMasuk.unshift({
+        no: nextNo,
+        tanggal,
+        namaBarang,
+        jumlah,
+        sumberDana,
+        lokasi,
+        fotoLabel: tempFotoMasuk.src ? 'Lihat Foto' : '-',
+        fotoSrc: tempFotoMasuk.src || ''
+      });
+      saveStoredData(STORAGE_KEY_MASUK, dataMasuk);
+
+      document.getElementById('formMasuk').reset();
+      document.getElementById('masukSumber').selectedIndex = 0;
+      document.getElementById('masukTanggal').value = today;
+      document.getElementById('previewMasukWrapper').classList.add('hidden');
+      document.getElementById('previewMasuk').src = '';
+      tempFotoMasuk = { src: '', name: '' };
+
+      renderRiwayat();
+      showAlert(`Preview: Barang masuk "${namaBarang}" (${jumlah} unit) berhasil ditambahkan ke riwayat.`, true);
+    }
+
+    // Simpan data Pemusnahan ke state preview
+    function submitPemusnahan(e) {
+      e.preventDefault();
+
+      const tanggal = document.getElementById('musnahTanggal').value;
+      const jumlah = Number(document.getElementById('musnahJumlah').value);
+      const namaBarang = document.getElementById('musnahNama').value.trim();
+
+      if (!tanggal || !namaBarang || !jumlah || jumlah < 1) {
+        showAlert('Mohon lengkapi seluruh kolom wajib pada form Pemusnahan Barang.', false);
+        return;
+      }
+
+      const nextNo = dataMusnah.length + 1;
+      dataMusnah.unshift({
+        no: nextNo,
+        tanggal,
+        namaBarang,
+        jumlah,
+        fotoLabel: tempFotoMusnah.src ? 'Lihat Foto' : '-',
+        fotoSrc: tempFotoMusnah.src || ''
+      });
+      saveStoredData(STORAGE_KEY_MUSNAH, dataMusnah);
+
+      document.getElementById('formMusnah').reset();
+      document.getElementById('musnahTanggal').value = today;
+      document.getElementById('previewMusnahWrapper').classList.add('hidden');
+      document.getElementById('previewMusnah').src = '';
+      tempFotoMusnah = { src: '', name: '' };
+
+      renderRiwayat();
+      showAlert(`Preview: Pemusnahan "${namaBarang}" (${jumlah} unit) berhasil dicatat ke riwayat.`, true);
+    }
+
+    function renderSumberBadge(sumber) {
+      if (sumber === 'Dana BOS') {
+        return '<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-800 border border-blue-200">Dana BOS</span>';
+      }
+      if (sumber === 'Yayasan') {
+        return '<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-200">Yayasan</span>';
+      }
+      return `<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-700">${escapeHtml(sumber || '-')}</span>`;
+    }
+
+    // ====== Edit Lokasi Penyimpanan di Riwayat ======
+    function renderLokasiCell(item, idx) {
+      if (editingLokasiIdx === idx) {
+        const safeValue = escapeHtml(item.lokasi || '').replace(/"/g, '&quot;');
+        return `
+          <div class="flex items-center gap-1.5 min-w-[190px]">
+            <input type="text" id="editLokasiInput" value="${safeValue}"
+                   onkeydown="handleLokasiKey(event, ${idx})"
+                   class="flex-1 text-xs border border-blue-400 rounded-md px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            <button type="button" onclick="saveLokasi(${idx})" aria-label="Simpan lokasi" title="Simpan"
+                    class="text-emerald-600 hover:text-emerald-800 px-1">
+              <i class="fa-solid fa-check"></i>
+            </button>
+            <button type="button" onclick="cancelEditLokasi()" aria-label="Batal edit" title="Batal"
+                    class="text-gray-400 hover:text-red-600 px-1">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>`;
+      }
+      return `
+        <div class="flex items-center gap-2">
+          <span>${escapeHtml(item.lokasi || '-')}</span>
+          <button type="button" onclick="startEditLokasi(${idx})" aria-label="Edit lokasi" title="Edit lokasi"
+                  class="text-gray-400 hover:text-blue-600">
+            <i class="fa-solid fa-pen text-[11px]"></i>
+          </button>
+        </div>`;
+    }
+
+    function startEditLokasi(idx) {
+      editingLokasiIdx = idx;
+      renderRiwayat();
+      const input = document.getElementById('editLokasiInput');
+      if (input) { input.focus(); input.select(); }
+    }
+
+    function cancelEditLokasi() {
+      editingLokasiIdx = null;
+      renderRiwayat();
+    }
+
+    function handleLokasiKey(e, idx) {
+      if (e.key === 'Enter') { e.preventDefault(); saveLokasi(idx); }
+      if (e.key === 'Escape') { cancelEditLokasi(); }
+    }
+
+    function saveLokasi(idx) {
+      const input = document.getElementById('editLokasiInput');
+      const baru = input ? input.value.trim() : '';
+      if (!baru) {
+        showAlert('Lokasi penyimpanan tidak boleh kosong.', false);
+        return;
+      }
+      const item = dataMasuk[idx];
+      if (!item) return;
+      const lama = item.lokasi;
+      item.lokasi = baru;
+      saveStoredData(STORAGE_KEY_MASUK, dataMasuk);
+      editingLokasiIdx = null;
+      renderRiwayat();
+      showAlert(`Lokasi "${item.namaBarang}" diubah dari "${lama}" menjadi "${baru}".`, true);
+    }
+
+    // Render tabel riwayat
+    function renderRiwayat() {
+      const tbodyMasuk = document.getElementById('tbodyMasuk');
+      const tbodyMusnah = document.getElementById('tbodyMusnah');
+      const filterEl = document.getElementById('filterSumberDana');
+      const filterVal = filterEl ? filterEl.value : 'ALL';
+
+      const searchMasukEl = document.getElementById('searchBarangMasuk');
+      const queryMasuk = searchMasukEl ? searchMasukEl.value.trim().toLowerCase() : '';
+      const clearMasukBtn = document.getElementById('clearSearchMasuk');
+      if (clearMasukBtn) clearMasukBtn.classList.toggle('hidden', queryMasuk.length === 0);
+
+      const searchMusnahEl = document.getElementById('searchBarangMusnah');
+      const queryMusnah = searchMusnahEl ? searchMusnahEl.value.trim().toLowerCase() : '';
+      const clearMusnahBtn = document.getElementById('clearSearchMusnah');
+      if (clearMusnahBtn) clearMusnahBtn.classList.toggle('hidden', queryMusnah.length === 0);
+
+      const filteredMasuk = dataMasuk.filter(item => {
+        const matchSumber = filterVal === 'ALL' || item.sumberDana === filterVal;
+        const matchQuery = !queryMasuk || item.namaBarang.toLowerCase().includes(queryMasuk);
+        return matchSumber && matchQuery;
+      });
+
+      const filteredMusnah = dataMusnah.filter(item => {
+        return !queryMusnah || item.namaBarang.toLowerCase().includes(queryMusnah);
+      });
+
+      document.getElementById('countMasuk').textContent = `${filteredMasuk.length} item`;
+      document.getElementById('countMusnah').textContent = `${filteredMusnah.length} item`;
+
+      if (filteredMasuk.length === 0) {
+        tbodyMasuk.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-gray-400">Tidak ada item barang masuk yang sesuai dengan pencarian/filter.</td></tr>';
+      } else {
+        tbodyMasuk.innerHTML = filteredMasuk.map((item) => {
+          const realIdx = dataMasuk.indexOf(item);
+          return `
+            <tr class="hover:bg-blue-50/40 transition">
+              <td class="p-2.5 text-gray-500">${item.no}</td>
+              <td class="p-2.5 whitespace-nowrap">${item.tanggal}</td>
+              <td class="p-2.5 font-medium text-gray-900">${escapeHtml(item.namaBarang)}</td>
+              <td class="p-2.5 font-semibold text-blue-700">${item.jumlah}</td>
+              <td class="p-2.5 whitespace-nowrap">${renderSumberBadge(item.sumberDana)}</td>
+              <td class="p-2.5">${renderLokasiCell(item, realIdx)}</td>
+              <td class="p-2.5 whitespace-nowrap">
+                ${item.fotoSrc
+                  ? `<button type="button" onclick="openPhotoModal('masuk', ${realIdx})" class="text-blue-600 hover:underline font-medium">Lihat</button>`
+                  : '<span class="text-gray-400">-</span>'}
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      if (filteredMusnah.length === 0) {
+        tbodyMusnah.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-400">Tidak ada item pemusnahan barang yang sesuai dengan pencarian.</td></tr>';
+      } else {
+        tbodyMusnah.innerHTML = filteredMusnah.map((item) => {
+          const realIdx = dataMusnah.indexOf(item);
+          return `
+            <tr class="hover:bg-red-50/40 transition">
+              <td class="p-2.5 text-gray-500">${item.no}</td>
+              <td class="p-2.5 whitespace-nowrap">${item.tanggal}</td>
+              <td class="p-2.5 font-medium text-gray-900">${escapeHtml(item.namaBarang)}</td>
+              <td class="p-2.5 font-semibold text-red-700">${item.jumlah}</td>
+              <td class="p-2.5 whitespace-nowrap">
+                ${item.fotoSrc
+                  ? `<button type="button" onclick="openPhotoModal('musnah', ${realIdx})" class="text-red-600 hover:underline font-medium">Lihat</button>`
+                  : '<span class="text-gray-400">-</span>'}
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+
+    // Bersihkan input pencarian tertentu
+    function clearSearchInput(inputId) {
+      const inputEl = document.getElementById(inputId);
+      if (inputEl) {
+        inputEl.value = '';
+        inputEl.focus();
+      }
+      renderRiwayat();
+    }
+
+    // Reset data preview ke contoh awal
+    function resetPreviewData() {
+      dataMasuk = JSON.parse(JSON.stringify(INITIAL_MASUK));
+      dataMusnah = JSON.parse(JSON.stringify(INITIAL_MUSNAH));
+      saveStoredData(STORAGE_KEY_MASUK, dataMasuk);
+      saveStoredData(STORAGE_KEY_MUSNAH, dataMusnah);
+      const filterEl = document.getElementById('filterSumberDana');
+      if (filterEl) filterEl.value = 'ALL';
+      const searchMasukEl = document.getElementById('searchBarangMasuk');
+      if (searchMasukEl) searchMasukEl.value = '';
+      const searchMusnahEl = document.getElementById('searchBarangMusnah');
+      if (searchMusnahEl) searchMusnahEl.value = '';
+      editingLokasiIdx = null;
+      renderRiwayat();
+      showAlert('Data preview telah dikembalikan ke data contoh awal.', true);
+    }
+
+    // Buka modal foto
+    function openPhotoModal(tipe, index) {
+      const item = tipe === 'masuk' ? dataMasuk[index] : dataMusnah[index];
+      if (!item || !item.fotoSrc) return;
+      document.getElementById('photoModalTitle').textContent = `Foto: ${item.namaBarang}`;
+      document.getElementById('photoModalImg').src = item.fotoSrc;
+      document.getElementById('photoModal').classList.remove('hidden');
+    }
+
+    function closePhotoModal() {
+      document.getElementById('photoModal').classList.add('hidden');
+      document.getElementById('photoModalImg').src = '';
+    }
+
+    // Sanitasi teks sederhana untuk mencegah XSS pada tampilan tabel
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Render awal tabel riwayat
+    renderRiwayat();
+  </script>
+</body>
+</html>
