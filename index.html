@@ -36,7 +36,7 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-lg font-bold text-gray-900 leading-tight">Inventaris Sarpras</h1>
-            <span class="text-[11px] font-semibold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">Mode Preview</span>
+            <span id="modeBadge" class="text-[11px] font-semibold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">Mode Preview</span>
           </div>
           <p class="text-xs text-gray-500">Pencatatan Barang Masuk &amp; Pemusnahan</p>
         </div>
@@ -217,7 +217,7 @@
     <!-- TAB 3: RIWAYAT TERBARU -->
     <section id="panelRiwayat" class="hidden space-y-6">
       <div class="flex flex-wrap items-center justify-between gap-2 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-xs text-blue-800">
-        <span><i class="fa-solid fa-circle-info mr-1"></i> Data pada preview ini bersifat simulasi lokal. Setiap input baru akan muncul di tabel di bawah.</span>
+        <span id="infoRiwayat"><i class="fa-solid fa-circle-info mr-1"></i> Data pada preview ini bersifat simulasi lokal. Setiap input baru akan muncul di tabel di bawah.</span>
         <button type="button" onclick="resetPreviewData()"
                 class="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 px-3 py-1.5 rounded-lg font-medium flex items-center gap-1.5 transition shadow-2xs">
           <i class="fa-solid fa-rotate-right"></i> Segarkan / Reset Contoh
@@ -322,6 +322,88 @@
     document.getElementById('masukTanggal').value = today;
     document.getElementById('musnahTanggal').value = today;
 
+    // ====== KONFIGURASI CLOUDINARY ======
+    // Isi dengan data akun Cloudinary Anda (Settings > Upload > Upload presets, mode "Unsigned")
+    const CLOUDINARY_CLOUD_NAME = 'ISI_CLOUD_NAME_ANDA';
+    const CLOUDINARY_UPLOAD_PRESET = 'ISI_UPLOAD_PRESET_ANDA';
+    const CLOUDINARY_FOLDER = 'inventaris-sarpras';
+
+    // ====== KONFIGURASI GOOGLE SHEET (Apps Script Web App) ======
+    // Isi dengan URL Web App hasil Deploy (berakhiran /exec)
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx8QykbqM4hL9vq19tTjbukMLZczMbd4UDlAFpfh-WYUbpA1phSQlRL98qum-ZBB-QY-w/exec';
+
+    function isSheetConfigured() {
+      return APPS_SCRIPT_URL && !APPS_SCRIPT_URL.startsWith('ISI_');
+    }
+
+    // Kirim data ke Apps Script (text/plain agar tidak kena preflight CORS)
+    async function callSheet(payload) {
+      const res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.message || 'Permintaan ke Sheet gagal');
+      return data;
+    }
+
+    // Ambil seluruh riwayat dari Sheet
+    async function loadFromSheet() {
+      if (!isSheetConfigured()) return;
+      try {
+        const res = await fetch(APPS_SCRIPT_URL + '?action=getData');
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.message || 'Gagal membaca data');
+        dataMasuk = data.masuk || [];
+        dataMusnah = data.musnah || [];
+        renderRiwayat();
+      } catch (err) {
+        showAlert('Gagal memuat data dari Google Sheet: ' + err.message, false);
+      }
+    }
+
+    function isCloudinaryConfigured() {
+      return CLOUDINARY_CLOUD_NAME && !CLOUDINARY_CLOUD_NAME.startsWith('ISI_')
+          && CLOUDINARY_UPLOAD_PRESET && !CLOUDINARY_UPLOAD_PRESET.startsWith('ISI_');
+    }
+
+    // Upload foto ke Cloudinary, mengembalikan URL aman (https)
+    async function uploadFoto(foto, tipe) {
+      if (!isCloudinaryConfigured()) {
+        // Belum dikonfigurasi: pakai pratinjau lokal saja
+        return foto.src;
+      }
+      const formData = new FormData();
+      formData.append('file', foto.blob, foto.name || 'foto.jpg');
+      formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+      formData.append('folder', `${CLOUDINARY_FOLDER}/${tipe}`);
+
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (!res.ok || !data.secure_url) {
+        throw new Error((data.error && data.error.message) || 'Upload gagal');
+      }
+      return data.secure_url;
+    }
+
+    function setButtonLoading(btn, isLoading, text) {
+      if (!btn) return;
+      if (isLoading) {
+        btn.dataset.originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.classList.add('opacity-70', 'cursor-not-allowed');
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>${text}</span>`;
+      } else {
+        btn.disabled = false;
+        btn.classList.remove('opacity-70', 'cursor-not-allowed');
+        if (btn.dataset.originalHtml) btn.innerHTML = btn.dataset.originalHtml;
+      }
+    }
+
     // Data contoh awal yang realistis untuk mode preview
     const INITIAL_MASUK = [
       {
@@ -400,8 +482,8 @@
     let dataMasuk = loadStoredData(STORAGE_KEY_MASUK, INITIAL_MASUK);
     let dataMusnah = loadStoredData(STORAGE_KEY_MUSNAH, INITIAL_MUSNAH);
 
-    let tempFotoMasuk = { src: '', name: '' };
-    let tempFotoMusnah = { src: '', name: '' };
+    let tempFotoMasuk = { src: '', name: '', blob: null };
+    let tempFotoMusnah = { src: '', name: '', blob: null };
 
     // Index baris Barang Masuk yang sedang diedit lokasinya (null = tidak ada)
     let editingLokasiIdx = null;
@@ -449,27 +531,29 @@
 
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
 
-          const imgEl = document.getElementById(imgId);
-          imgEl.src = dataUrl;
+          canvas.toBlob(function(blob) {
+            if (!blob) return;
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            document.getElementById(imgId).src = dataUrl;
 
-          if (tipe === 'masuk') {
-            document.getElementById('previewMasukWrapper').classList.remove('hidden');
-            document.getElementById('namaFileMasuk').textContent = 'File: ' + file.name;
-            tempFotoMasuk = { src: dataUrl, name: file.name };
-          } else {
-            document.getElementById('previewMusnahWrapper').classList.remove('hidden');
-            document.getElementById('namaFileMusnah').textContent = 'File: ' + file.name;
-            tempFotoMusnah = { src: dataUrl, name: file.name };
-          }
+            if (tipe === 'masuk') {
+              document.getElementById('previewMasukWrapper').classList.remove('hidden');
+              document.getElementById('namaFileMasuk').textContent = 'File: ' + file.name;
+              tempFotoMasuk = { src: dataUrl, name: file.name, blob: blob };
+            } else {
+              document.getElementById('previewMusnahWrapper').classList.remove('hidden');
+              document.getElementById('namaFileMusnah').textContent = 'File: ' + file.name;
+              tempFotoMusnah = { src: dataUrl, name: file.name, blob: blob };
+            }
+          }, 'image/jpeg', 0.8);
         };
         img.src = event.target.result;
       };
       reader.readAsDataURL(file);
     }
 
-    function showAlert(message, isSuccess) {
+        function showAlert(message, isSuccess) {
       const box = document.getElementById('alertBox');
       const icon = document.getElementById('alertIcon');
       const msgEl = document.getElementById('alertMessage');
@@ -491,8 +575,8 @@
       document.getElementById('alertBox').classList.add('hidden');
     }
 
-    // Simpan data Barang Masuk ke state preview
-    function submitBarangMasuk(e) {
+    // Simpan data Barang Masuk (foto diunggah ke Cloudinary)
+    async function submitBarangMasuk(e) {
       e.preventDefault();
 
       const tanggal = document.getElementById('masukTanggal').value;
@@ -506,32 +590,50 @@
         return;
       }
 
-      const nextNo = dataMasuk.length + 1;
-      dataMasuk.unshift({
-        no: nextNo,
-        tanggal,
-        namaBarang,
-        jumlah,
-        sumberDana,
-        lokasi,
-        fotoLabel: tempFotoMasuk.src ? 'Lihat Foto' : '-',
-        fotoSrc: tempFotoMasuk.src || ''
-      });
-      saveStoredData(STORAGE_KEY_MASUK, dataMasuk);
+      const btn = document.getElementById('btnSubmitMasuk');
+      let fotoUrl = '';
+      if (tempFotoMasuk.blob) {
+        setButtonLoading(btn, true, 'Mengunggah foto...');
+        try {
+          fotoUrl = await uploadFoto(tempFotoMasuk, 'masuk');
+        } catch (err) {
+          setButtonLoading(btn, false);
+          showAlert('Gagal mengunggah foto ke Cloudinary: ' + err.message, false);
+          return;
+        }
+        setButtonLoading(btn, false);
+      }
+
+      const item = { tanggal, namaBarang, jumlah, sumberDana, lokasi, fotoSrc: fotoUrl };
+      if (isSheetConfigured()) {
+        setButtonLoading(btn, true, 'Menyimpan ke Sheet...');
+        try {
+          await callSheet({ action: 'addMasuk', data: item });
+        } catch (err) {
+          setButtonLoading(btn, false);
+          showAlert('Gagal menyimpan ke Google Sheet: ' + err.message, false);
+          return;
+        }
+        setButtonLoading(btn, false);
+        await loadFromSheet();
+      } else {
+        dataMasuk.unshift({ no: dataMasuk.length + 1, ...item, fotoLabel: fotoUrl ? 'Lihat Foto' : '-' });
+        saveStoredData(STORAGE_KEY_MASUK, dataMasuk);
+      }
 
       document.getElementById('formMasuk').reset();
       document.getElementById('masukSumber').selectedIndex = 0;
       document.getElementById('masukTanggal').value = today;
       document.getElementById('previewMasukWrapper').classList.add('hidden');
       document.getElementById('previewMasuk').src = '';
-      tempFotoMasuk = { src: '', name: '' };
+      tempFotoMasuk = { src: '', name: '', blob: null };
 
       renderRiwayat();
-      showAlert(`Preview: Barang masuk "${namaBarang}" (${jumlah} unit) berhasil ditambahkan ke riwayat.`, true);
+      showAlert(`Barang masuk "${namaBarang}" (${jumlah} unit) berhasil ditambahkan ke riwayat.`, true);
     }
 
-    // Simpan data Pemusnahan ke state preview
-    function submitPemusnahan(e) {
+    // Simpan data Pemusnahan (foto diunggah ke Cloudinary)
+    async function submitPemusnahan(e) {
       e.preventDefault();
 
       const tanggal = document.getElementById('musnahTanggal').value;
@@ -543,28 +645,48 @@
         return;
       }
 
-      const nextNo = dataMusnah.length + 1;
-      dataMusnah.unshift({
-        no: nextNo,
-        tanggal,
-        namaBarang,
-        jumlah,
-        fotoLabel: tempFotoMusnah.src ? 'Lihat Foto' : '-',
-        fotoSrc: tempFotoMusnah.src || ''
-      });
-      saveStoredData(STORAGE_KEY_MUSNAH, dataMusnah);
+      const btn = document.getElementById('btnSubmitMusnah');
+      let fotoUrl = '';
+      if (tempFotoMusnah.blob) {
+        setButtonLoading(btn, true, 'Mengunggah foto...');
+        try {
+          fotoUrl = await uploadFoto(tempFotoMusnah, 'musnah');
+        } catch (err) {
+          setButtonLoading(btn, false);
+          showAlert('Gagal mengunggah foto ke Cloudinary: ' + err.message, false);
+          return;
+        }
+        setButtonLoading(btn, false);
+      }
+
+      const item = { tanggal, namaBarang, jumlah, fotoSrc: fotoUrl };
+      if (isSheetConfigured()) {
+        setButtonLoading(btn, true, 'Menyimpan ke Sheet...');
+        try {
+          await callSheet({ action: 'addMusnah', data: item });
+        } catch (err) {
+          setButtonLoading(btn, false);
+          showAlert('Gagal menyimpan ke Google Sheet: ' + err.message, false);
+          return;
+        }
+        setButtonLoading(btn, false);
+        await loadFromSheet();
+      } else {
+        dataMusnah.unshift({ no: dataMusnah.length + 1, ...item, fotoLabel: fotoUrl ? 'Lihat Foto' : '-' });
+        saveStoredData(STORAGE_KEY_MUSNAH, dataMusnah);
+      }
 
       document.getElementById('formMusnah').reset();
       document.getElementById('musnahTanggal').value = today;
       document.getElementById('previewMusnahWrapper').classList.add('hidden');
       document.getElementById('previewMusnah').src = '';
-      tempFotoMusnah = { src: '', name: '' };
+      tempFotoMusnah = { src: '', name: '', blob: null };
 
       renderRiwayat();
-      showAlert(`Preview: Pemusnahan "${namaBarang}" (${jumlah} unit) berhasil dicatat ke riwayat.`, true);
+      showAlert(`Pemusnahan "${namaBarang}" (${jumlah} unit) berhasil dicatat ke riwayat.`, true);
     }
 
-    function renderSumberBadge(sumber) {
+        function renderSumberBadge(sumber) {
       if (sumber === 'Dana BOS') {
         return '<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-800 border border-blue-200">Dana BOS</span>';
       }
@@ -620,7 +742,7 @@
       if (e.key === 'Escape') { cancelEditLokasi(); }
     }
 
-    function saveLokasi(idx) {
+    async function saveLokasi(idx) {
       const input = document.getElementById('editLokasiInput');
       const baru = input ? input.value.trim() : '';
       if (!baru) {
@@ -630,6 +752,14 @@
       const item = dataMasuk[idx];
       if (!item) return;
       const lama = item.lokasi;
+      if (isSheetConfigured()) {
+        try {
+          await callSheet({ action: 'updateLokasi', no: item.no, lokasi: baru });
+        } catch (err) {
+          showAlert('Gagal memperbarui lokasi di Google Sheet: ' + err.message, false);
+          return;
+        }
+      }
       item.lokasi = baru;
       saveStoredData(STORAGE_KEY_MASUK, dataMasuk);
       editingLokasiIdx = null;
@@ -724,6 +854,11 @@
 
     // Reset data preview ke contoh awal
     function resetPreviewData() {
+      if (isSheetConfigured()) {
+        editingLokasiIdx = null;
+        loadFromSheet().then(() => showAlert('Data dimuat ulang dari Google Sheet.', true));
+        return;
+      }
       dataMasuk = JSON.parse(JSON.stringify(INITIAL_MASUK));
       dataMusnah = JSON.parse(JSON.stringify(INITIAL_MUSNAH));
       saveStoredData(STORAGE_KEY_MASUK, dataMasuk);
@@ -761,7 +896,16 @@
     }
 
     // Render awal tabel riwayat
+    if (isSheetConfigured()) {
+      dataMasuk = [];
+      dataMusnah = [];
+      const badge = document.getElementById('modeBadge');
+      badge.textContent = 'Terhubung Sheet';
+      badge.className = 'text-[11px] font-semibold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full';
+      document.getElementById('infoRiwayat').innerHTML = '<i class="fa-solid fa-circle-info mr-1"></i> Data diambil dari Google Sheet. Tombol Segarkan memuat ulang data terbaru.';
+    }
     renderRiwayat();
+    loadFromSheet();
   </script>
 </body>
 </html>
